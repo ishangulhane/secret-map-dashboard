@@ -39,6 +39,14 @@ const STATE_DECLINED = "declined"
 const TYPE_USER = "user"
 const TYPE_SELLER = "seller"
 
+<<<<<<< HEAD
+=======
+//keys for key-value store
+const USERS_KEY = "users"
+const SELLERS_KEY = "sellers"
+const CONTRACTS_KEY = "contracts"
+
+>>>>>>> Updated chaincode
 // SimpleChaincode example simple Chaincode implementation
 type SimpleChaincode struct {
 }
@@ -53,9 +61,13 @@ type Member struct {
 // User
 type User struct {
 	Member
+<<<<<<< HEAD
 	TotalSteps             int      `json:"totalSteps"`
 	StepsUsedForConversion int      `json:"stepsUsedForConversion"`
 	ContractIds            []string `json:"contractIds"`
+=======
+	TransactionSteps int `json:"transactionSteps"`
+>>>>>>> Updated chaincode
 }
 
 // Seller
@@ -74,6 +86,7 @@ type Product struct {
 
 // Contract
 type Contract struct {
+<<<<<<< HEAD
 	Id          string `json:"id"`
 	SellerId    string `json:"sellerId"`
 	UserId      string `json:"userId"`
@@ -82,6 +95,15 @@ type Contract struct {
 	Quantity    int    `json:"quantity"`
 	Cost        int    `json:"cost"`
 	State       string `json:"state"`
+=======
+	Id        string `json:"id"`
+	SellerId  string `json:"sellerId"`
+	UserId    string `json:"userId"`
+	ProductId string `json:"productId"`
+	Quantity  int    `json:"quantity"`
+	Cost      int    `json:"price"`
+	State     string `json:"state"`
+>>>>>>> Updated chaincode
 }
 
 // ============================================================================================================================
@@ -99,6 +121,7 @@ func main() {
 // ============================================================================================================================
 func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response {
 
+<<<<<<< HEAD
 	//store sellerIds
 	var sellerIds []string
 	sellerIdsBytes, err := json.Marshal(sellerIds)
@@ -106,6 +129,31 @@ func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response {
 		return shim.Error("Error initializing sellers.")
 	}
 	err = stub.PutState("sellerIds", sellerIdsBytes)
+=======
+	//initalize users key-value store
+	var users []User
+	usersBytes, err := json.Marshal(users)
+	if err != nil {
+		return shim.Error("Error initializing users.")
+	}
+	err = stub.PutState(USERS_KEY, usersBytes)
+
+	//initalize sellers key-value store
+	var sellers []Seller
+	sellersBytes, err := json.Marshal(sellers)
+	if err != nil {
+		return shim.Error("Error initializing sellers.")
+	}
+	err = stub.PutState(SELLERS_KEY, sellersBytes)
+
+	//initalize contracts key-value store
+	var contracts []Contract
+	contractBytes, err := json.Marshal(contracts)
+	if err != nil {
+		return shim.Error("Error initializing contracts.")
+	}
+	err = stub.PutState(CONTRACTS_KEY, contractBytes)
+>>>>>>> Updated chaincode
 
 	return shim.Success(nil)
 }
@@ -158,10 +206,17 @@ func (t *SimpleChaincode) getState(stub shim.ChaincodeStubInterface, args []stri
 	//get id
 	id := args[0]
 
+<<<<<<< HEAD
 	// Get the state from the ledger
 	dataAsBytes, err := stub.GetState(id)
 	if err != nil {
 		return shim.Error("Failed to get state")
+=======
+	//get data by key
+	dataBytes, err := stub.GetState(key)
+	if err != nil {
+		return shim.Error("Unable to get data by key - check key")
+>>>>>>> Updated chaincode
 	}
 
 	//return user info
