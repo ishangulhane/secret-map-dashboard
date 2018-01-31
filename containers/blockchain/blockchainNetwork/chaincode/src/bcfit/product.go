@@ -17,13 +17,11 @@ specific language governing permissions and limitations
 under the License.
 */
 
-
 package main
-
 
 import (
 	"encoding/json"
-  "strconv"
+	"strconv"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	pb "github.com/hyperledger/fabric/protos/peer"
@@ -57,31 +55,31 @@ func (t *SimpleChaincode) createProduct(stub shim.ChaincodeStubInterface, args [
 	product.Price = price
 
 	//get all sellers
-	sellersBytes, err := stub.GetState( SELLERS_KEY )
+	sellersBytes, err := stub.GetState(SELLERS_KEY)
 	if err != nil {
-		return shim.Error( "Unable to get sellers." )
+		return shim.Error("Unable to get sellers.")
 	}
 	var sellers []Seller
-	json.Unmarshal( sellersBytes, &sellers )
+	json.Unmarshal(sellersBytes, &sellers)
 
 	//find the seller, and append product
 	sellerFound := false
-	for g := 0; g < len( sellers ); g++ {
-    if sellers[g].Id == seller_id {
+	for g := 0; g < len(sellers); g++ {
+		if sellers[g].Id == seller_id {
 			sellerFound = true
-      sellers[g].Products = append( sellers[g].Products, product )
-      break
-    }
-  }
+			sellers[g].Products = append(sellers[g].Products, product)
+			break
+		}
+	}
 
 	//if seller not found return error
 	if sellerFound != true {
-    return shim.Error( "Seller not found" )
-  }
+		return shim.Error("Seller not found")
+	}
 
 	//update seller state
-	updatedSellersBytes, _ := json.Marshal( sellers )
-	err = stub.PutState( SELLERS_KEY, updatedSellersBytes )
+	updatedSellersBytes, _ := json.Marshal(sellers)
+	err = stub.PutState(SELLERS_KEY, updatedSellersBytes)
 
 	return shim.Success(nil)
 
@@ -114,44 +112,44 @@ func (t *SimpleChaincode) updateProduct(stub shim.ChaincodeStubInterface, args [
 	}
 
 	//get all sellers
-	sellersBytes, err := stub.GetState( SELLERS_KEY )
+	sellersBytes, err := stub.GetState(SELLERS_KEY)
 	if err != nil {
-		return shim.Error( "Unable to get sellers." )
+		return shim.Error("Unable to get sellers.")
 	}
 	var sellers []Seller
-	json.Unmarshal( sellersBytes, &sellers )
+	json.Unmarshal(sellersBytes, &sellers)
 
 	//find the seller
 	sellerFound := false
 	productFound := false
-	for g := 0; g < len( sellers ); g++ {
-    if sellers[g].Id == seller_id {
+	for g := 0; g < len(sellers); g++ {
+		if sellers[g].Id == seller_id {
 			sellerFound = true
 			//find the product and update the properties
-			for h := 0; h < len( sellers[g].Products ); h++ {
-		    if sellers[g].Products[h].Id == product_id {
+			for h := 0; h < len(sellers[g].Products); h++ {
+				if sellers[g].Products[h].Id == product_id {
 					productFound = true
 					sellers[g].Products[h].Name = newProductName
 					sellers[g].Products[h].Count = newProductCount
 					sellers[g].Products[h].Price = newProductPrice
-		      break
-		    }
-		  }
-    }
-  }
+					break
+				}
+			}
+		}
+	}
 
 	//if seller not found return error
 	if sellerFound != true {
-    return shim.Error( "Seller not found" )
-  }
+		return shim.Error("Seller not found")
+	}
 	//if product not found return error
 	if productFound != true {
-    return shim.Error( "Product not found" )
-  }
+		return shim.Error("Product not found")
+	}
 
 	//update seller state
-	updatedSellersBytes, _ := json.Marshal( sellers )
-	err = stub.PutState( SELLERS_KEY, updatedSellersBytes )
+	updatedSellersBytes, _ := json.Marshal(sellers)
+	err = stub.PutState(SELLERS_KEY, updatedSellersBytes)
 
 	return shim.Success(nil)
 
@@ -172,42 +170,42 @@ func (t *SimpleChaincode) getProductByID(stub shim.ChaincodeStubInterface, args 
 	product_id := args[1]
 
 	//get all sellers
-	sellersBytes, err := stub.GetState( SELLERS_KEY )
+	sellersBytes, err := stub.GetState(SELLERS_KEY)
 	if err != nil {
-		return shim.Error( "Unable to get sellers." )
+		return shim.Error("Unable to get sellers.")
 	}
 	var sellers []Seller
-	json.Unmarshal( sellersBytes, &sellers )
+	json.Unmarshal(sellersBytes, &sellers)
 
 	var product Product
 	//find the seller
 	sellerFound := false
 	productFound := false
-	for g := 0; g < len( sellers ); g++ {
-    if sellers[g].Id == seller_id {
+	for g := 0; g < len(sellers); g++ {
+		if sellers[g].Id == seller_id {
 			sellerFound = true
 			//find the product for the seller
-			for h := 0; h < len( sellers[g].Products ); h++ {
-		    if sellers[g].Products[h].Id == product_id {
-						productFound = true
-						product = sellers[g].Products[h]
-						break
-		    }
-		  }
-    }
-  }
+			for h := 0; h < len(sellers[g].Products); h++ {
+				if sellers[g].Products[h].Id == product_id {
+					productFound = true
+					product = sellers[g].Products[h]
+					break
+				}
+			}
+		}
+	}
 
 	//if seller not found return error
 	if sellerFound != true {
-    return shim.Error( "Seller not found" )
-  }
+		return shim.Error("Seller not found")
+	}
 	//if product not found return error
 	if productFound != true {
-    return shim.Error( "Product not found" )
-  }
+		return shim.Error("Product not found")
+	}
 
 	//return product type
-	productAsBytes, _ := json.Marshal( product )
+	productAsBytes, _ := json.Marshal(product)
 	return shim.Success(productAsBytes)
 
 }
