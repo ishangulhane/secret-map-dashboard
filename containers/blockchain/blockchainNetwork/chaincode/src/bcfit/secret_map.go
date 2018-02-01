@@ -58,7 +58,8 @@ type Member struct {
 // User
 type User struct {
 	Member
-	TransactionSteps int `json:"transactionSteps"`
+	TotalSteps             int `json:"totalSteps"`
+	StepsUsedForConversion int `json:"stepsUsedForConversion"`
 }
 
 // Seller
@@ -102,7 +103,7 @@ func main() {
 func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response {
 
 	//initalize users key-value store
-	var users []User
+	users := make(map[string]User)
 	usersBytes, err := json.Marshal(users)
 	if err != nil {
 		return shim.Error("Error initializing users.")
@@ -110,7 +111,7 @@ func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response {
 	err = stub.PutState(USERS_KEY, usersBytes)
 
 	//initalize sellers key-value store
-	var sellers []Seller
+	sellers := make(map[string]Seller)
 	sellersBytes, err := json.Marshal(sellers)
 	if err != nil {
 		return shim.Error("Error initializing sellers.")
@@ -118,7 +119,7 @@ func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response {
 	err = stub.PutState(SELLERS_KEY, sellersBytes)
 
 	//initalize contracts key-value store
-	var contracts []Contract
+	contracts := make(map[string]Contract)
 	contractBytes, err := json.Marshal(contracts)
 	if err != nil {
 		return shim.Error("Error initializing contracts.")
@@ -143,6 +144,8 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 		return t.getMember(stub, args)
 	} else if function == "generateFitcoin" {
 		return t.generateFitcoin(stub, args)
+	} else if function == "getDataByKey" {
+		return t.getDataByKey(stub, args)
 	} else if function == "createProduct" {
 		return t.createProduct(stub, args)
 	} else if function == "updateProduct" {
@@ -155,8 +158,6 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 		return t.transactPurchase(stub, args)
 	} else if function == "getContractByID" {
 		return t.getContractByID(stub, args)
-	} else if function == "getDataByKey" {
-		return t.getDataByKey(stub, args)
 	}
 
 	return shim.Error("Function with the name " + function + " does not exist.")
