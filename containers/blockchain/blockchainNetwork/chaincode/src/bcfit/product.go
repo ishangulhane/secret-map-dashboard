@@ -32,48 +32,14 @@ import (
 // Inputs - sellerId, productID, productName, productCount, productPrice
 // ============================================================================================================================
 func (t *SimpleChaincode) createProduct(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	var err error
 	if len(args) != 5 {
 		return shim.Error("Incorrect number of arguments")
 	}
 
-	//get sellerID from args
-	seller_id := args[0]
-	//create new product object from args
-	var product Product
-	product.Id = args[1]
-	product.Name = args[2]
-	count, err := strconv.Atoi(args[3])
-	if err != nil {
-		return shim.Error("4th argument must be a numeric string")
-	}
-	product.Count = count
-	price, err := strconv.Atoi(args[4])
-	if err != nil {
-		return shim.Error("5th argument must be a numeric string")
-	}
-	product.Price = price
-
-	//get seller
-	sellerAsBytes, err := stub.GetState(seller_id)
-	if err != nil {
-		return shim.Error("Failed to get seller")
-	}
-	seller := Seller{}
-	json.Unmarshal(sellerAsBytes, &seller)
-
-	//append product
-	seller.Products = append(seller.Products, product)
-
-	//update seller's state
-	updatedSellerAsBytes, _ := json.Marshal(seller)
-	err = stub.PutState(seller_id, updatedSellerAsBytes)
-	if err != nil {
-		return shim.Error(err.Error())
-	}
+	t.updateProduct(stub, args)
 
 	//return seller info
-	return shim.Success(updatedSellerAsBytes)
+	return shim.Success(nil)
 
 }
 
@@ -82,10 +48,10 @@ func (t *SimpleChaincode) createProduct(stub shim.ChaincodeStubInterface, args [
 // Inputs - sellerId, productID, newProductName, newProductCount, newProductPrice
 // ============================================================================================================================
 func (t *SimpleChaincode) updateProduct(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	var err error
 	if len(args) != 5 {
 		return shim.Error("Incorrect number of arguments")
 	}
+	var err error
 
 	//get sellerID from args
 	seller_id := args[0]
@@ -96,11 +62,11 @@ func (t *SimpleChaincode) updateProduct(stub shim.ChaincodeStubInterface, args [
 	newProductName := args[2]
 	newProductCount, err := strconv.Atoi(args[3])
 	if err != nil {
-		return shim.Error("3rd argument must be a numeric string")
+		return shim.Error("3rd argument 'productCount' must be a numeric string")
 	}
 	newProductPrice, err := strconv.Atoi(args[4])
 	if err != nil {
-		return shim.Error("4th argument must be a numeric string")
+		return shim.Error("4th argument 'productCount' must be a numeric string")
 	}
 
 	//get seller
@@ -110,6 +76,9 @@ func (t *SimpleChaincode) updateProduct(stub shim.ChaincodeStubInterface, args [
 	}
 	seller := Seller{}
 	json.Unmarshal(sellerAsBytes, &seller)
+	if seller.Type != TYPE_SELLER {
+		return shim.Error("Not seller type")
+	}
 
 	//find the product and update the properties
 	productFound := false
@@ -124,7 +93,13 @@ func (t *SimpleChaincode) updateProduct(stub shim.ChaincodeStubInterface, args [
 	}
 	//if product not found return error
 	if productFound != true {
-		return shim.Error("Product not found")
+		var product Product
+		product.Id = product_id
+		product.Name = newProductName
+		product.Count = newProductCount
+		product.Price = newProductPrice
+		//append product
+		seller.Products = append(seller.Products, product)
 	}
 
 	//update seller's state
@@ -144,10 +119,10 @@ func (t *SimpleChaincode) updateProduct(stub shim.ChaincodeStubInterface, args [
 // Inputs - sellerId, productID
 // ============================================================================================================================
 func (t *SimpleChaincode) getProductByID(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	var err error
 	if len(args) != 2 {
 		return shim.Error("Incorrect number of arguments")
 	}
+	var err error
 
 	//get sellerID, productID from args
 	seller_id := args[0]
@@ -160,6 +135,9 @@ func (t *SimpleChaincode) getProductByID(stub shim.ChaincodeStubInterface, args 
 	}
 	seller := Seller{}
 	json.Unmarshal(sellerAsBytes, &seller)
+	if seller.Type != TYPE_SELLER {
+		return shim.Error("Not seller type")
+	}
 
 	//find the product
 	var product Product
