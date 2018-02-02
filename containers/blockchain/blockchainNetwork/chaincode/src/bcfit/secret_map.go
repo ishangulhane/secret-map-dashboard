@@ -124,6 +124,8 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 		return t.makePurchase(stub, args)
 	} else if function == "transactPurchase" {
 		return t.transactPurchase(stub, args)
+	} else if function == "getAllUserContracts" {
+		return t.getAllUserContracts(stub, args)
 	} else if function == "getAllContracts" {
 		return t.getAllContracts(stub, args)
 	}

@@ -102,7 +102,6 @@ func (t *SimpleChaincode) generateFitcoins(stub shim.ChaincodeStubInterface, arg
 	user_id := args[0]
 	newTransactionSteps, err := strconv.Atoi(args[1])
 	if err != nil {
-		// handle error
 		return shim.Error(err.Error())
 	}
 
@@ -113,6 +112,9 @@ func (t *SimpleChaincode) generateFitcoins(stub shim.ChaincodeStubInterface, arg
 		return shim.Error("Failed to get user")
 	}
 	json.Unmarshal(userAsBytes, &user)
+	if user.Type != TYPE_USER {
+		return shim.Error("Not user type")
+	}
 
 	//update user account
 	var newSteps = newTransactionSteps - user.StepsUsedForConversion
