@@ -41,36 +41,34 @@ func (t *SimpleChaincode) makePurchase(stub shim.ChaincodeStubInterface, args []
 	}
 	var err error
 
-	//gets sellerID, userID, productID, quantity from args
-	seller_id := args[0]
-	user_id := args[1]
-	product_id := args[2]
-	quantity, err := strconv.Atoi(args[3])
-	if err != nil {
-		return shim.Error("4th argument must be a numeric string")
-	}
-
-	//creates contract struct with properties
+	//creates contract struct with properties, and get sellerID, userID, productID, quantity from args
 	var contract Contract
 	contract.Id = "c" + randomInts(10)
-	contract.SellerId = seller_id
-	contract.UserId = user_id
-	contract.ProductId = product_id
+	contract.SellerId = args[0]
+	contract.UserId = args[1]
+	contract.ProductId = args[2]
+	quantity, err := strconv.Atoi(args[3])
+	if err != nil {
+		return shim.Error("4th argument 'quantity' must be a numeric string")
+	}
 	contract.Quantity = quantity
 
 	//get seller
-	sellerAsBytes, err := stub.GetState(seller_id)
+	sellerAsBytes, err := stub.GetState(contract.SellerId)
 	if err != nil {
 		return shim.Error("Failed to get seller")
 	}
-	seller := Seller{}
+	var seller Seller
 	json.Unmarshal(sellerAsBytes, &seller)
+	if seller.Type != TYPE_SELLER {
+		return shim.Error("Not seller type")
+	}
 
 	//find the product
 	var product Product
 	productFound := false
 	for h := 0; h < len(seller.Products); h++ {
-		if seller.Products[h].Id == product_id {
+		if seller.Products[h].Id == contract.ProductId {
 			productFound = true
 			product = seller.Products[h]
 			break
@@ -83,13 +81,13 @@ func (t *SimpleChaincode) makePurchase(stub shim.ChaincodeStubInterface, args []
 	}
 
 	//calculates cost and assigns to contract
-	contract.Cost = product.Price * quantity
+	contract.Cost = product.Price * contract.Quantity
 	//assign 'Pending' state
 	contract.State = STATE_PENDING
 
 	// get user's current state
 	var user User
-	userAsBytes, err := stub.GetState(user_id)
+	userAsBytes, err := stub.GetState(contract.UserId)
 	if err != nil {
 		return shim.Error("Failed to get user")
 	}
@@ -99,19 +97,20 @@ func (t *SimpleChaincode) makePurchase(stub shim.ChaincodeStubInterface, args []
 	if user.FitcoinsBalance < contract.Cost {
 		return shim.Error("Insufficient funds")
 	}
-	//append contractId
-	user.ContractIds = append(user.ContractIds, contract.Id)
 
 	//store contract
-	contractAsBytes, _ := json.Marshal(contract)      //convert to array of bytes
-	err = stub.PutState(contract.Id, contractAsBytes) //store owner by its Id
+	contractAsBytes, _ := json.Marshal(contract)
+	err = stub.PutState(contract.Id, contractAsBytes)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
 
+	//append contractId
+	user.ContractIds = append(user.ContractIds, contract.Id)
+
 	//update user's state
 	updatedUserAsBytes, _ := json.Marshal(user)
-	err = stub.PutState(user_id, updatedUserAsBytes)
+	err = stub.PutState(contract.UserId, updatedUserAsBytes)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -123,40 +122,35 @@ func (t *SimpleChaincode) makePurchase(stub shim.ChaincodeStubInterface, args []
 
 // ============================================================================================================================
 // Transact Purchase - update user account, update seller's account and product inventory, update contract state
-// Inputs - contractID, contractState
+// Inputs - contractID
 // ============================================================================================================================
 func (t *SimpleChaincode) transactPurchase(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	if len(args) != 2 {
+	if len(args) != 1 {
 		return shim.Error("Incorrect number of arguments")
 	}
-	var err error
-	var seller_id string
-	var user_id string
-	var product_id string
-	var quantity int
-	var cost int
 
-	//get contractID and state from args
+	//get contractID args
 	contract_id := args[0]
-	newState := args[1]
 
 	// Get contract from the ledger
 	contractAsBytes, err := stub.GetState(contract_id)
 	if err != nil {
 		return shim.Error("Failed to get user")
 	}
-
 	var contract Contract
 	json.Unmarshal(contractAsBytes, &contract)
 
-	seller_id = contract.SellerId
-	user_id = contract.UserId
-	product_id = contract.ProductId
-	quantity = contract.Quantity
-	cost = contract.Cost
+	//if current contract state is pending, then execute transaction
+	if contract.State == STATE_COMPLETE {
+		return shim.Error("Contract already 'Complete'")
 
-	//if newState is 'complete', updates user account, seller's account and product inventory
-	if newState == STATE_COMPLETE {
+	} else if contract.State == STATE_PENDING {
+
+		seller_id := contract.SellerId
+		user_id := contract.UserId
+		product_id := contract.ProductId
+		quantity := contract.Quantity
+		cost := contract.Cost
 
 		// get user's current state
 		var user User
@@ -180,6 +174,9 @@ func (t *SimpleChaincode) transactPurchase(stub shim.ChaincodeStubInterface, arg
 			return shim.Error("Failed to get user")
 		}
 		json.Unmarshal(sellerAsBytes, &seller)
+		if seller.Type != TYPE_SELLER {
+			return shim.Error("Not seller type")
+		}
 
 		//update seller's FitcoinsBalance
 		seller.FitcoinsBalance = seller.FitcoinsBalance + cost
@@ -213,25 +210,28 @@ func (t *SimpleChaincode) transactPurchase(stub shim.ChaincodeStubInterface, arg
 			return shim.Error(err.Error())
 		}
 
-	}
+		// update contract state
+		contract.State = STATE_COMPLETE
 
-	// update contract state
-	contract.State = newState
+		// update contract state on ledger
+		updatedContractAsBytes, _ := json.Marshal(contract)
+		err = stub.PutState(contract.Id, updatedContractAsBytes)
+		if err != nil {
+			return shim.Error(err.Error())
+		}
 
-	//store contract
-	updatedContractAsBytes, _ := json.Marshal(contract)
-	err = stub.PutState(contract.Id, updatedContractAsBytes)
-	if err != nil {
-		return shim.Error(err.Error())
+		//return contract info
+		return shim.Success(updatedContractAsBytes)
+
 	}
 
 	//return contract info
-	return shim.Success(updatedContractAsBytes)
+	return shim.Success(contractAsBytes)
 }
 
 // ============================================================================================================================
 // Get all contracts
-// Inputs -
+// Inputs - (none)
 // ============================================================================================================================
 func (t *SimpleChaincode) getAllContracts(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	var err error
@@ -258,7 +258,7 @@ func (t *SimpleChaincode) getAllContracts(stub shim.ChaincodeStubInterface, args
 	}
 
 	//change to array of bytes
-	contractsAsBytes, _ := json.Marshal(contracts) //convert to array of bytes
+	contractsAsBytes, _ := json.Marshal(contracts)
 	return shim.Success(contractsAsBytes)
 
 }

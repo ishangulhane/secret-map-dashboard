@@ -33,6 +33,7 @@ import (
 // Inputs - id, type(user or seller)
 // ============================================================================================================================
 func (t *SimpleChaincode) createMember(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	var err error
 	if len(args) != 2 {
 		return shim.Error("Incorrect number of arguments")
 	}
@@ -43,7 +44,6 @@ func (t *SimpleChaincode) createMember(stub shim.ChaincodeStubInterface, args []
 
 	//check if type is 'user'
 	if member_type == TYPE_USER {
-		var err error
 
 		//create user
 		var user User
@@ -62,11 +62,9 @@ func (t *SimpleChaincode) createMember(stub shim.ChaincodeStubInterface, args []
 
 		//return user info
 		return shim.Success(userAsBytes)
-	}
 
-	//check if type is 'seller'
-	if member_type == TYPE_SELLER {
-		var err error
+	} else if member_type == TYPE_SELLER {
+		//check if type is 'seller'
 
 		//create seller
 		var seller Seller
