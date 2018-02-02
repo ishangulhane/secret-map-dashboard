@@ -20,7 +20,6 @@ under the License.
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
@@ -39,11 +38,6 @@ const STATE_DECLINED = "declined"
 const TYPE_USER = "user"
 const TYPE_SELLER = "seller"
 
-//keys for key-value store
-const USERS_KEY = "users"
-const SELLERS_KEY = "sellers"
-const CONTRACTS_KEY = "contracts"
-
 // SimpleChaincode example simple Chaincode implementation
 type SimpleChaincode struct {
 }
@@ -58,8 +52,9 @@ type Member struct {
 // User
 type User struct {
 	Member
-	TotalSteps             int `json:"totalSteps"`
-	StepsUsedForConversion int `json:"stepsUsedForConversion"`
+	TotalSteps             int      `json:"totalSteps"`
+	StepsUsedForConversion int      `json:"stepsUsedForConversion"`
+	ContractIds            []string `json:"contractIds"`
 }
 
 // Seller
@@ -101,31 +96,6 @@ func main() {
 // Init - initialize the chaincode
 // ============================================================================================================================
 func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response {
-
-	//initalize users key-value store
-	users := make(map[string]User)
-	usersBytes, err := json.Marshal(users)
-	if err != nil {
-		return shim.Error("Error initializing users.")
-	}
-	err = stub.PutState(USERS_KEY, usersBytes)
-
-	//initalize sellers key-value store
-	sellers := make(map[string]Seller)
-	sellersBytes, err := json.Marshal(sellers)
-	if err != nil {
-		return shim.Error("Error initializing sellers.")
-	}
-	err = stub.PutState(SELLERS_KEY, sellersBytes)
-
-	//initalize contracts key-value store
-	contracts := make(map[string]Contract)
-	contractBytes, err := json.Marshal(contracts)
-	if err != nil {
-		return shim.Error("Error initializing contracts.")
-	}
-	err = stub.PutState(CONTRACTS_KEY, contractBytes)
-
 	return shim.Success(nil)
 }
 
@@ -140,12 +110,10 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 	//call functions
 	if function == "createMember" {
 		return t.createMember(stub, args)
-	} else if function == "getMember" {
-		return t.getMember(stub, args)
-	} else if function == "generateFitcoin" {
-		return t.generateFitcoin(stub, args)
-	} else if function == "getDataByKey" {
-		return t.getDataByKey(stub, args)
+	} else if function == "generateFitcoins" {
+		return t.generateFitcoins(stub, args)
+	} else if function == "getState" {
+		return t.getState(stub, args)
 	} else if function == "createProduct" {
 		return t.createProduct(stub, args)
 	} else if function == "updateProduct" {
@@ -156,31 +124,31 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 		return t.makePurchase(stub, args)
 	} else if function == "transactPurchase" {
 		return t.transactPurchase(stub, args)
-	} else if function == "getContractByID" {
-		return t.getContractByID(stub, args)
+	} else if function == "getAllContracts" {
+		return t.getAllContracts(stub, args)
 	}
 
 	return shim.Error("Function with the name " + function + " does not exist.")
 }
 
 // ============================================================================================================================
-// Get all data for a key
-// Inputs - key
+// Get state with userId, sellerID, contractID
+// Inputs - id
 // ============================================================================================================================
-func (t *SimpleChaincode) getDataByKey(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+func (t *SimpleChaincode) getState(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	if len(args) != 1 {
 		return shim.Error("Incorrect number of arguments")
 	}
 
-	//get key from args
-	key := args[0]
+	//get id
+	id := args[0]
 
-	//get data by key
-	dataBytes, err := stub.GetState(key)
+	// Get the state from the ledger
+	dataAsBytes, err := stub.GetState(id)
 	if err != nil {
-		return shim.Error("Unable to get data by key - check key")
+		return shim.Error("Failed to get state")
 	}
 
-	return shim.Success(dataBytes)
-
+	//return user info
+	return shim.Success(dataAsBytes)
 }
