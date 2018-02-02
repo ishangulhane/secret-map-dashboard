@@ -32,15 +32,8 @@ import (
 // Inputs - sellerId, productID, productName, productCount, productPrice
 // ============================================================================================================================
 func (t *SimpleChaincode) createProduct(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	if len(args) != 5 {
-		return shim.Error("Incorrect number of arguments")
-	}
 
-	t.updateProduct(stub, args)
-
-	//return seller info
-	return shim.Success(nil)
-
+	return t.updateProduct(stub, args)
 }
 
 // ============================================================================================================================
@@ -66,7 +59,7 @@ func (t *SimpleChaincode) updateProduct(stub shim.ChaincodeStubInterface, args [
 	}
 	newProductPrice, err := strconv.Atoi(args[4])
 	if err != nil {
-		return shim.Error("4th argument 'productCount' must be a numeric string")
+		return shim.Error("4th argument 'productPrice' must be a numeric string")
 	}
 
 	//get seller
