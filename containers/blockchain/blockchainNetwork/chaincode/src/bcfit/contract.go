@@ -21,8 +21,11 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/rand"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	pb "github.com/hyperledger/fabric/protos/peer"
@@ -49,29 +52,22 @@ func (t *SimpleChaincode) makePurchase(stub shim.ChaincodeStubInterface, args []
 
 	//creates contract struct with properties
 	var contract Contract
-	contract.Id = randomString(10)
+	contract.Id = "c" + randomInts(10)
 	contract.SellerId = seller_id
 	contract.UserId = user_id
 	contract.ProductId = product_id
 	contract.Quantity = quantity
 
-	//find product price from product in seller
-	//get all sellers
-	sellersBytes, err := stub.GetState("sellers")
-	if err != nil {
-		return shim.Error("Unable to get sellers.")
-	}
-	sellers := make(map[string]Seller)
-	json.Unmarshal(sellersBytes, &sellers)
-
 	//get seller
-	seller := sellers[seller_id]
-	if seller.Id != seller_id {
-		return shim.Error("Seller not found")
+	sellerAsBytes, err := stub.GetState(seller_id)
+	if err != nil {
+		return shim.Error("Failed to get seller")
 	}
+	seller := Seller{}
+	json.Unmarshal(sellerAsBytes, &seller)
 
+	//find the product
 	var product Product
-	//find the seller
 	productFound := false
 	for h := 0; h < len(seller.Products); h++ {
 		if seller.Products[h].Id == product_id {
@@ -91,20 +87,33 @@ func (t *SimpleChaincode) makePurchase(stub shim.ChaincodeStubInterface, args []
 	//assign 'Pending' state
 	contract.State = STATE_PENDING
 
-	//get all contracts
-	contractsBytes, err := stub.GetState(CONTRACTS_KEY)
+	//store contract
+	contractAsBytes, _ := json.Marshal(contract)      //convert to array of bytes
+	err = stub.PutState(contract.Id, contractAsBytes) //store owner by its Id
 	if err != nil {
-		return shim.Error("Unable to get contracts.")
+		return shim.Error(err.Error())
 	}
-	contracts := make(map[string]Contract)
-	json.Unmarshal(contractsBytes, &contracts)
 
-	//append contract to contracts and update the contracts state
-	contracts[contract.Id] = contract
-	updatedContractsBytes, _ := json.Marshal(contracts)
-	err = stub.PutState(CONTRACTS_KEY, updatedContractsBytes)
+	// get user's current state
+	var user User
+	userAsBytes, err := stub.GetState(user_id)
+	if err != nil {
+		return shim.Error("Failed to get user")
+	}
+	json.Unmarshal(userAsBytes, &user)
 
-	return shim.Success(nil)
+	//append contractId
+	user.ContractIds = append(user.ContractIds, contract.Id)
+
+	//update seller's state
+	updatedUserAsBytes, _ := json.Marshal(user)
+	err = stub.PutState(user_id, updatedUserAsBytes)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	//return contract info
+	return shim.Success(contractAsBytes)
 
 }
 
@@ -127,19 +136,14 @@ func (t *SimpleChaincode) transactPurchase(stub shim.ChaincodeStubInterface, arg
 	contract_id := args[0]
 	newState := args[1]
 
-	//get all contracts
-	contractBytes, err := stub.GetState(CONTRACTS_KEY)
+	// Get contract from the ledger
+	contractAsBytes, err := stub.GetState(contract_id)
 	if err != nil {
-		return shim.Error("Unable to get contracts.")
+		return shim.Error("Failed to get user")
 	}
-	contracts := make(map[string]Contract)
-	json.Unmarshal(contractBytes, &contracts)
 
-	// find and update contract state
-	contract := contracts[contract_id]
-	if contract.Id != contract_id {
-		return shim.Error("Contract not found")
-	}
+	var contract Contract
+	json.Unmarshal(contractAsBytes, &contract)
 
 	seller_id = contract.SellerId
 	user_id = contract.UserId
@@ -150,19 +154,13 @@ func (t *SimpleChaincode) transactPurchase(stub shim.ChaincodeStubInterface, arg
 	//if newState is 'complete', updates user account, seller's account and product inventory
 	if newState == STATE_COMPLETE {
 
-		//get all users
-		usersBytes, err := stub.GetState(USERS_KEY)
+		// get user's current state
+		var user User
+		userAsBytes, err := stub.GetState(user_id)
 		if err != nil {
-			return shim.Error("Unable to get users.")
+			return shim.Error("Failed to get user")
 		}
-		users := make(map[string]User)
-		json.Unmarshal(usersBytes, &users)
-
-		//find the user in users
-		user := users[user_id]
-		if user.Id != user_id {
-			return shim.Error("User not found")
-		}
+		json.Unmarshal(userAsBytes, &user)
 
 		//update user's FitcoinsBalance
 		if (user.FitcoinsBalance - cost) >= 0 {
@@ -171,19 +169,13 @@ func (t *SimpleChaincode) transactPurchase(stub shim.ChaincodeStubInterface, arg
 			return shim.Error("Insufficient fitcoins")
 		}
 
-		//get all sellers
-		sellersBytes, err := stub.GetState(SELLERS_KEY)
+		// get seller's current state
+		var seller Seller
+		sellerAsBytes, err := stub.GetState(seller_id)
 		if err != nil {
-			return shim.Error("Unable to get sellers.")
+			return shim.Error("Failed to get user")
 		}
-		sellers := make(map[string]Seller)
-		json.Unmarshal(sellersBytes, &sellers)
-
-		//get seller
-		seller := sellers[seller_id]
-		if seller.Id != seller_id {
-			return shim.Error("Seller not found")
-		}
+		json.Unmarshal(sellerAsBytes, &seller)
 
 		//update seller's FitcoinsBalance
 		seller.FitcoinsBalance = seller.FitcoinsBalance + cost
@@ -204,72 +196,85 @@ func (t *SimpleChaincode) transactPurchase(stub shim.ChaincodeStubInterface, arg
 		}
 
 		//update users state
-		users[user_id] = user
-		updatedUsersBytes, _ := json.Marshal(users)
-		err = stub.PutState(USERS_KEY, updatedUsersBytes)
+		updatedUserAsBytes, _ := json.Marshal(user)
+		err = stub.PutState(user_id, updatedUserAsBytes)
+		if err != nil {
+			return shim.Error(err.Error())
+		}
 
-		//update sellers state
-		sellers[seller_id] = seller
-		updatedSellersBytes, _ := json.Marshal(sellers)
-		err = stub.PutState(SELLERS_KEY, updatedSellersBytes)
+		//update seller's state
+		updatedSellerAsBytes, _ := json.Marshal(seller)
+		err = stub.PutState(seller_id, updatedSellerAsBytes)
+		if err != nil {
+			return shim.Error(err.Error())
+		}
 
 	}
 
 	// update contract state
 	contract.State = newState
 
-	//update contracts state
-	contracts[contract_id] = contract
-	updatedContractsBytes, _ := json.Marshal(contracts)
-	err = stub.PutState(CONTRACTS_KEY, updatedContractsBytes)
-
-	return shim.Success(nil)
-
-}
-
-// ============================================================================================================================
-// Get contracts by ID
-// Inputs - contractID
-// ============================================================================================================================
-func (t *SimpleChaincode) getContractByID(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	if len(args) != 1 {
-		return shim.Error("Incorrect number of arguments")
-	}
-	var err error
-
-	//get contractID from args
-	contract_id := args[0]
-
-	//gets all contracts
-	contractsBytes, err := stub.GetState(CONTRACTS_KEY)
+	//store contract
+	updatedContractAsBytes, _ := json.Marshal(contract)
+	err = stub.PutState(contract.Id, updatedContractAsBytes)
 	if err != nil {
-		return shim.Error("Unable to get contracts.")
-	}
-	contracts := make(map[string]Contract)
-	json.Unmarshal(contractsBytes, &contracts)
-
-	//find and return the contract
-	contract := contracts[contract_id]
-	if contract.Id != contract_id {
-		return shim.Error("Contract not found")
+		return shim.Error(err.Error())
 	}
 
-	//return user info
-	contractBytes, _ := json.Marshal(contract)
-	return shim.Success(contractBytes)
+	//return contract info
+	return shim.Success(updatedContractAsBytes)
+}
+
+// ============================================================================================================================
+// Get all contracts
+// Inputs -
+// ============================================================================================================================
+func (t *SimpleChaincode) getAllContracts(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	var err error
+	var contracts []Contract
+
+	// ---- Get All Contracts ---- //
+	resultsIterator, err := stub.GetStateByRange("c0", "c9999999999999999999")
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+	defer resultsIterator.Close()
+
+	for resultsIterator.HasNext() {
+		aKeyValue, err := resultsIterator.Next()
+		if err != nil {
+			return shim.Error(err.Error())
+		}
+		queryKeyAsStr := aKeyValue.Key
+		queryValAsBytes := aKeyValue.Value
+		fmt.Println("on contract id - ", queryKeyAsStr)
+		var contract Contract
+		json.Unmarshal(queryValAsBytes, &contract)
+		contracts = append(contracts, contract)
+	}
+
+	//change to array of bytes
+	contractsAsBytes, _ := json.Marshal(contracts) //convert to array of bytes
+	return shim.Success(contractsAsBytes)
 
 }
 
-// Returns an int >= min, < max
-func randomInt(min, max int) int {
-	return min + rand.Intn(max-min)
+//generate an array of random ints
+func randomArray(len int) []int {
+	a := make([]int, len)
+	for i := 0; i <= len-1; i++ {
+		a[i] = rand.Intn(10)
+	}
+	return a
 }
 
-// Generate a random string of A-Z chars with len = l
-func randomString(len int) string {
-	bytes := make([]byte, len)
-	for i := 0; i < len; i++ {
-		bytes[i] = byte(randomInt(65, 90))
+// Generate a random string of ints with length len
+func randomInts(len int) string {
+	rand.Seed(time.Now().UnixNano())
+	intArray := randomArray(len)
+	var stringInt []string
+	for _, i := range intArray {
+		stringInt = append(stringInt, strconv.Itoa(i))
 	}
-	return string(bytes)
+	return strings.Join(stringInt, "")
 }
