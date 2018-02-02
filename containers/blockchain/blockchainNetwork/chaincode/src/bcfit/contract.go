@@ -87,13 +87,6 @@ func (t *SimpleChaincode) makePurchase(stub shim.ChaincodeStubInterface, args []
 	//assign 'Pending' state
 	contract.State = STATE_PENDING
 
-	//store contract
-	contractAsBytes, _ := json.Marshal(contract)      //convert to array of bytes
-	err = stub.PutState(contract.Id, contractAsBytes) //store owner by its Id
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-
 	// get user's current state
 	var user User
 	userAsBytes, err := stub.GetState(user_id)
@@ -102,10 +95,21 @@ func (t *SimpleChaincode) makePurchase(stub shim.ChaincodeStubInterface, args []
 	}
 	json.Unmarshal(userAsBytes, &user)
 
+	//check if user has enough Fitcoinsbalance
+	if user.FitcoinsBalance < contract.Cost {
+		return shim.Error("Insufficient funds")
+	}
 	//append contractId
 	user.ContractIds = append(user.ContractIds, contract.Id)
 
-	//update seller's state
+	//store contract
+	contractAsBytes, _ := json.Marshal(contract)      //convert to array of bytes
+	err = stub.PutState(contract.Id, contractAsBytes) //store owner by its Id
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	//update user's state
 	updatedUserAsBytes, _ := json.Marshal(user)
 	err = stub.PutState(user_id, updatedUserAsBytes)
 	if err != nil {
