@@ -53,22 +53,15 @@ func (t *SimpleChaincode) createMember(stub shim.ChaincodeStubInterface, args []
 		user.StepsUsedForConversion = 0
 		user.TotalSteps = 0
 
-		// get all users
-		usersBytes, err := stub.GetState(USERS_KEY)
+		//store user
+		userAsBytes, _ := json.Marshal(user)
+		err = stub.PutState(user.Id, userAsBytes)
 		if err != nil {
-			return shim.Error("Unable to get users.")
+			return shim.Error(err.Error())
 		}
-		users := make(map[string]User)
-		json.Unmarshal(usersBytes, &users)
-
-		//add user and update users state
-		users[member_id] = user
-		updatedUsersBytes, _ := json.Marshal(users)
-		err = stub.PutState(USERS_KEY, updatedUsersBytes)
 
 		//return user info
-		userBytes, _ := json.Marshal(user)
-		return shim.Success(userBytes)
+		return shim.Success(userAsBytes)
 	}
 
 	//check if type is 'seller'
@@ -81,22 +74,15 @@ func (t *SimpleChaincode) createMember(stub shim.ChaincodeStubInterface, args []
 		seller.Type = member_type
 		seller.FitcoinsBalance = 0
 
-		// get all sellers
-		sellersBytes, err := stub.GetState(SELLERS_KEY)
+		// store seller
+		sellerAsBytes, _ := json.Marshal(seller)
+		err = stub.PutState(seller.Id, sellerAsBytes)
 		if err != nil {
-			return shim.Error("Unable to get users.")
+			return shim.Error(err.Error())
 		}
-		sellers := make(map[string]Seller)
-		json.Unmarshal(sellersBytes, &sellers)
-
-		//add seller and update sellers state
-		sellers[member_id] = seller
-		updatedSellersBytes, _ := json.Marshal(sellers)
-		err = stub.PutState(SELLERS_KEY, updatedSellersBytes)
 
 		//return seller info
-		sellerBytes, _ := json.Marshal(seller)
-		return shim.Success(sellerBytes)
+		return shim.Success(sellerAsBytes)
 
 	}
 
@@ -105,70 +91,10 @@ func (t *SimpleChaincode) createMember(stub shim.ChaincodeStubInterface, args []
 }
 
 // ============================================================================================================================
-// Get member
-// Inputs - id, type(user or seller)
-// ============================================================================================================================
-func (t *SimpleChaincode) getMember(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	if len(args) != 2 {
-		return shim.Error("Incorrect number of arguments")
-	}
-
-	//get id and type from args
-	member_id := args[0]
-	member_type := strings.ToLower(args[1])
-
-	if member_type == TYPE_USER {
-
-		//get all users
-		usersBytes, err := stub.GetState(USERS_KEY)
-		if err != nil {
-			return shim.Error("Unable to get users.")
-		}
-		users := make(map[string]User)
-		json.Unmarshal(usersBytes, &users)
-
-		//find the user in users
-		user := users[member_id]
-		if user.Id != member_id {
-			return shim.Error("User not found")
-		}
-
-		//return user info
-		userBytes, _ := json.Marshal(user)
-		return shim.Success(userBytes)
-	}
-
-	//check if type is 'seller'
-	if member_type == TYPE_SELLER {
-
-		//get all sellers
-		sellersBytes, err := stub.GetState(SELLERS_KEY)
-		if err != nil {
-			return shim.Error("Unable to get sellers.")
-		}
-		sellers := make(map[string]Seller)
-		json.Unmarshal(sellersBytes, &sellers)
-
-		//find the seller in sellers
-		seller := sellers[member_id]
-		if seller.Id != member_id {
-			return shim.Error("Seller not found")
-		}
-
-		//return seller info
-		sellerBytes, _ := json.Marshal(seller)
-		return shim.Success(sellerBytes)
-
-	}
-
-	return shim.Error("Unknown type")
-}
-
-// ============================================================================================================================
-// Generate Fitcoin for the user
+// Generate Fitcoins for the user
 // Inputs - userId, transactionSteps
 // ============================================================================================================================
-func (t *SimpleChaincode) generateFitcoin(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+func (t *SimpleChaincode) generateFitcoins(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	if len(args) != 2 {
 		return shim.Error("Incorrect number of arguments")
 	}
@@ -182,20 +108,15 @@ func (t *SimpleChaincode) generateFitcoin(stub shim.ChaincodeStubInterface, args
 		return shim.Error(err.Error())
 	}
 
-	//get all users
-	usersBytes, err := stub.GetState(USERS_KEY)
+	//get user
+	var user User
+	userAsBytes, err := stub.GetState(user_id)
 	if err != nil {
-		return shim.Error("Unable to get users.")
+		return shim.Error("Failed to get user")
 	}
-	users := make(map[string]User)
-	json.Unmarshal(usersBytes, &users)
+	json.Unmarshal(userAsBytes, &user)
 
-	//update the user in users
-	user := users[user_id]
-	if user.Id != user_id {
-		return shim.Error("User not found")
-	}
-
+	//update user account
 	var newSteps = newTransactionSteps - user.StepsUsedForConversion
 	if newSteps > STEPS_TO_FITCOIN {
 		var newFitcoins = newSteps / STEPS_TO_FITCOIN
@@ -203,14 +124,18 @@ func (t *SimpleChaincode) generateFitcoin(stub shim.ChaincodeStubInterface, args
 		user.FitcoinsBalance = user.FitcoinsBalance + newFitcoins
 		user.StepsUsedForConversion = newTransactionSteps - remainderSteps
 		user.TotalSteps = newTransactionSteps
-		users[user_id] = user
 
 		//update users state
-		updatedUsersBytes, _ := json.Marshal(users)
-		err = stub.PutState(USERS_KEY, updatedUsersBytes)
+		updatedUserAsBytes, _ := json.Marshal(user)
+		err = stub.PutState(user_id, updatedUserAsBytes)
+		if err != nil {
+			return shim.Error(err.Error())
+		}
+
+		//return user info
+		return shim.Success(updatedUserAsBytes)
 	}
 
-	userBytes, _ := json.Marshal(user)
-	return shim.Success(userBytes)
+	return shim.Success(userAsBytes)
 
 }
