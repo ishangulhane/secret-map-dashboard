@@ -74,13 +74,14 @@ type Product struct {
 
 // Contract
 type Contract struct {
-	Id        string `json:"id"`
-	SellerId  string `json:"sellerId"`
-	UserId    string `json:"userId"`
-	ProductId string `json:"productId"`
-	Quantity  int    `json:"quantity"`
-	Cost      int    `json:"price"`
-	State     string `json:"state"`
+	Id          string `json:"id"`
+	SellerId    string `json:"sellerId"`
+	UserId      string `json:"userId"`
+	ProductId   string `json:"productId"`
+	ProductName string `json:"productName"`
+	Quantity    int    `json:"quantity"`
+	Cost        int    `json:"cost"`
+	State       string `json:"state"`
 }
 
 // ============================================================================================================================
