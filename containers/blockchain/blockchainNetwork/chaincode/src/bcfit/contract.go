@@ -54,30 +54,39 @@ func (t *SimpleChaincode) makePurchase(stub shim.ChaincodeStubInterface, args []
 	contract.Quantity = quantity
 
 	//get seller
-	sellerAsBytes, err := stub.GetState(contract.SellerId)
+	sellersBytes, err := stub.GetState( "sellers" )
 	if err != nil {
-		return shim.Error("Failed to get seller")
+		return shim.Error( "Unable to get sellers." )
 	}
-	var seller Seller
-	json.Unmarshal(sellerAsBytes, &seller)
-	if seller.Type != TYPE_SELLER {
-		return shim.Error("Not seller type")
-	}
+	var sellers []Seller
+	json.Unmarshal( sellersBytes, &sellers )
 
 	//find the product
 	var product Product
 	productFound := false
-	for h := 0; h < len(seller.Products); h++ {
-		if seller.Products[h].Id == contract.ProductId {
-			productFound = true
-			product = seller.Products[h]
-			break
-		}
-	}
+	sellerFound := false
 
-	//if product not found return error
+	//find seller in sellers array
+	for g := 0; g < len( sellers ); g++ {
+    if sellers[g].Id == contract.SellerId {
+			sellerFound = true
+			//find the product and update the properties
+			for h := 0; h < len( sellers[g].Products ); h++ {
+		    if sellers[g].Products[h].Id == contract.ProductId {
+						productFound = true
+						product = sellers[g].Products[h]
+						break
+		    }
+		  }
+      break
+    }
+  }
+	//if product or seller not found return error
 	if productFound != true {
-		return shim.Error("Product not found")
+		return shim.Error( "Product not found" )
+	}
+	if sellerFound != true {
+		return shim.Error( "Seller not found" )
 	}
 
 	//calculates cost and assigns to contract
@@ -92,9 +101,6 @@ func (t *SimpleChaincode) makePurchase(stub shim.ChaincodeStubInterface, args []
 		return shim.Error("Failed to get user")
 	}
 	json.Unmarshal(userAsBytes, &user)
-	if user.Type != TYPE_USER {
-		return shim.Error("Not user type")
-	}
 
 	//check if user has enough Fitcoinsbalance
 	if user.FitcoinsBalance < contract.Cost {
@@ -156,9 +162,6 @@ func (t *SimpleChaincode) transactPurchase(stub shim.ChaincodeStubInterface, arg
 				return shim.Error("Failed to get user")
 			}
 			json.Unmarshal(userAsBytes, &user)
-			if user.Type != TYPE_USER {
-				return shim.Error("Not user type")
-			}
 
 			//update user's FitcoinsBalance
 			if (user.FitcoinsBalance - contract.Cost) >= 0 {
@@ -167,34 +170,37 @@ func (t *SimpleChaincode) transactPurchase(stub shim.ChaincodeStubInterface, arg
 				return shim.Error("Insufficient fitcoins")
 			}
 
-			// get seller's current state
-			var seller Seller
-			sellerAsBytes, err := stub.GetState(contract.SellerId)
-			if err != nil {
-				return shim.Error("Failed to get user")
-			}
-			json.Unmarshal(sellerAsBytes, &seller)
-			if seller.Type != TYPE_SELLER {
-				return shim.Error("Not seller type")
-			}
+			// get sellers current state
+			sellersBytes, err := stub.GetState( "sellers" )
+		  if err != nil {
+		    return shim.Error( "Unable to get sellers." )
+		  }
+		  var sellers []Seller
+		  json.Unmarshal( sellersBytes, &sellers )
 
-			//update seller's FitcoinsBalance
-			seller.FitcoinsBalance = seller.FitcoinsBalance + contract.Cost
-
-			//update seller's product count
+			// update seller's fitcoin account
 			productFound := false
-			for h := 0; h < len(seller.Products); h++ {
-				if seller.Products[h].Id == contract.ProductId {
-					productFound = true
-					seller.Products[h].Count = seller.Products[h].Count - contract.Quantity
-					break
-				}
-			}
-
-			//if product not found return error
+			sellerFound := false
+		  for g := 0; g < len( sellers ); g++ {
+		    if sellers[g].Id == contract.SellerId {
+					sellerFound = true
+		      sellers[g].FitcoinsBalance = sellers[g].FitcoinsBalance + contract.Cost
+				  // update product count
+					for h := 0; h < len( sellers[g].Products ); h++ {
+				    if sellers[g].Products[h].Id == contract.ProductId {
+							productFound = true
+							sellers[g].Products[h].Count = sellers[g].Products[h].Count - contract.Quantity
+				    }
+				  }
+		    }
+		  }
+			//if product or seller not found return error
 			if productFound != true {
-				return shim.Error("Product not found")
-			}
+		    return shim.Error( "Product not found" )
+		  }
+			if sellerFound != true {
+		    return shim.Error( "Seller not found" )
+		  }
 
 			//update users state
 			updatedUserAsBytes, _ := json.Marshal(user)
@@ -204,8 +210,8 @@ func (t *SimpleChaincode) transactPurchase(stub shim.ChaincodeStubInterface, arg
 			}
 
 			//update seller's state
-			updatedSellerAsBytes, _ := json.Marshal(seller)
-			err = stub.PutState(contract.SellerId, updatedSellerAsBytes)
+			updatedSellersBytes, _ := json.Marshal( sellers )
+		  err = stub.PutState( "sellers", updatedSellersBytes )
 			if err != nil {
 				return shim.Error(err.Error())
 			}
@@ -256,8 +262,8 @@ func (t *SimpleChaincode) getAllUserContracts(stub shim.ChaincodeStubInterface, 
 
 	//get user contracts
 	var contracts []Contract
-	for h := 0; h < len(user.ContractIds); h++ {
-		//get contract from the ledger
+	for h := 0; h < len( user.ContractIds ); h++ {
+		//get contracts from the ledger
 		contractAsBytes, err := stub.GetState(user.ContractIds[h])
 		if err != nil {
 			return shim.Error("Failed to get contract")
@@ -266,7 +272,7 @@ func (t *SimpleChaincode) getAllUserContracts(stub shim.ChaincodeStubInterface, 
 		json.Unmarshal(contractAsBytes, &contract)
 		contracts = append(contracts, contract)
 	}
-	//change to array of bytes
+	//return contracts
 	contractsAsBytes, _ := json.Marshal(contracts)
 	return shim.Success(contractsAsBytes)
 
@@ -305,6 +311,7 @@ func (t *SimpleChaincode) getAllContracts(stub shim.ChaincodeStubInterface, args
 	return shim.Success(contractsAsBytes)
 
 }
+
 
 //generate an array of random ints
 func randomArray(len int) []int {
