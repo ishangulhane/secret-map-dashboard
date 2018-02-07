@@ -22,7 +22,7 @@ package main
 import (
 	"encoding/json"
 	"strconv"
-  "strings"
+	"strings"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	pb "github.com/hyperledger/fabric/protos/peer"
@@ -39,11 +39,11 @@ func (t *SimpleChaincode) createMember(stub shim.ChaincodeStubInterface, args []
 	}
 
 	//get id and type from args
-  member_id := args[0]
-  member_type := strings.ToLower(args[1])
+	member_id := args[0]
+	member_type := strings.ToLower(args[1])
 
 	//check if type is 'user'
-  if member_type == TYPE_USER {
+	if member_type == TYPE_USER {
 
 		//create user
 		var user User
@@ -73,23 +73,23 @@ func (t *SimpleChaincode) createMember(stub shim.ChaincodeStubInterface, args []
 		seller.FitcoinsBalance = 0
 
 		// store seller
-		sellersBytes, err := stub.GetState( "sellers" )
-    if err != nil {
-      return shim.Error( "Unable to get users." )
-    }
-    var sellers []Seller
+		sellersBytes, err := stub.GetState("sellers")
+		if err != nil {
+			return shim.Error("Unable to get users.")
+		}
+		var sellers []Seller
 
-    // add seller and update sellers
-    json.Unmarshal( sellersBytes, &sellers )
-    sellers = append( sellers, seller )
-    updatedSellersBytes, _ := json.Marshal( sellers )
-    err = stub.PutState( "sellers", updatedSellersBytes )
+		// add seller and update sellers
+		json.Unmarshal(sellersBytes, &sellers)
+		sellers = append(sellers, seller)
+		updatedSellersBytes, _ := json.Marshal(sellers)
+		err = stub.PutState("sellers", updatedSellersBytes)
 
 		//return seller info
-		sellerAsBytes, _ := json.Marshal( seller )
+		sellerAsBytes, _ := json.Marshal(seller)
 		return shim.Success(sellerAsBytes)
 
-  }
+	}
 
 	return shim.Success(nil)
 
@@ -103,13 +103,13 @@ func (t *SimpleChaincode) generateFitcoins(stub shim.ChaincodeStubInterface, arg
 	if len(args) != 2 {
 		return shim.Error("Incorrect number of arguments")
 	}
-  var err error
+	var err error
 
 	//get user_id and newSteps from args
-  user_id := args[0]
+	user_id := args[0]
 	newTransactionSteps, err := strconv.Atoi(args[1])
 	if err != nil {
-			return shim.Error(err.Error())
+		return shim.Error(err.Error())
 	}
 
 	//get user
@@ -137,7 +137,7 @@ func (t *SimpleChaincode) generateFitcoins(stub shim.ChaincodeStubInterface, arg
 		}
 
 		//return user info
-	  return shim.Success(updatedUserAsBytes)
+		return shim.Success(updatedUserAsBytes)
 	}
 
 	return shim.Success(userAsBytes)

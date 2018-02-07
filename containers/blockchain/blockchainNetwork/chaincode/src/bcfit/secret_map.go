@@ -19,10 +19,9 @@ under the License.
 
 package main
 
-
 import (
-	"fmt"
 	"encoding/json"
+	"fmt"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	pb "github.com/hyperledger/fabric/protos/peer"
@@ -32,9 +31,9 @@ import (
 const STEPS_TO_FITCOIN = 100
 
 //contract state
-const STATE_COMPLETE  = "complete"
-const STATE_PENDING   = "pending"
-const STATE_DECLINED  = "declined"
+const STATE_COMPLETE = "complete"
+const STATE_PENDING = "pending"
+const STATE_DECLINED = "declined"
 
 //member type
 const TYPE_USER = "user"
@@ -46,44 +45,43 @@ type SimpleChaincode struct {
 
 // Member object for participants
 type Member struct {
-	Id	   						    string 	`json:"id"`
-	Type  								string 	`json:"memberType"`
-	FitcoinsBalance			 	int 		`json:"fitcoinsBalance"`
+	Id              string `json:"id"`
+	Type            string `json:"memberType"`
+	FitcoinsBalance int    `json:"fitcoinsBalance"`
 }
 
 // User
 type User struct {
 	Member
-	TotalSteps			 					int 			`json:"totalSteps"`
-	StepsUsedForConversion 		int 			`json:"stepsUsedForConversion"`
-	ContractIds								[]string	`json:"contractIds"`
+	TotalSteps             int      `json:"totalSteps"`
+	StepsUsedForConversion int      `json:"stepsUsedForConversion"`
+	ContractIds            []string `json:"contractIds"`
 }
 
 // Seller
 type Seller struct {
 	Member
-	Products 		[]Product		`json:"products"`
+	Products []Product `json:"products"`
 }
 
 // Product
 type Product struct {
-	Id				   					string 	`json:"id"`
-	Name			  					string 	`json:"name"`
-	Count									int 		`json:"count"`
-	Price									int 		`json:"price"`
+	Id    string `json:"id"`
+	Name  string `json:"name"`
+	Count int    `json:"count"`
+	Price int    `json:"price"`
 }
 
 // Contract
 type Contract struct {
-	Id				  string 	 	`json:"id"`
-	SellerId 		string 		`json:"sellerId"`
-	UserId			string		`json:"userId"`
-	ProductId		string		`json:"productId"`
-	Quantity		int				`json:"quantity"`
-	Cost				int				`json:"price"`
-	State				string 		`json:"state"`
+	Id        string `json:"id"`
+	SellerId  string `json:"sellerId"`
+	UserId    string `json:"userId"`
+	ProductId string `json:"productId"`
+	Quantity  int    `json:"quantity"`
+	Cost      int    `json:"price"`
+	State     string `json:"state"`
 }
-
 
 // ============================================================================================================================
 // Main
@@ -91,23 +89,22 @@ type Contract struct {
 func main() {
 	err := shim.Start(new(SimpleChaincode))
 	if err != nil {
-    fmt.Printf( "Error starting chaincode: %s", err )
-  }
+		fmt.Printf("Error starting chaincode: %s", err)
+	}
 }
-
 
 // ============================================================================================================================
 // Init - initialize the chaincode
 // ============================================================================================================================
-func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response  {
+func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response {
 
 	//sellers
-  var sellers []Seller
-  sellersBytes, err := json.Marshal( sellers )
-  if err != nil {
-    return shim.Error("Error initializing sellers.")
-  }
-  err = stub.PutState( "sellers", sellersBytes )
+	var sellers []Seller
+	sellersBytes, err := json.Marshal(sellers)
+	if err != nil {
+		return shim.Error("Error initializing sellers.")
+	}
+	err = stub.PutState("sellers", sellersBytes)
 
 	return shim.Success(nil)
 }
@@ -121,7 +118,7 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 	fmt.Println("starting invoke, for - " + function)
 
 	//call functions
-  if function == "createMember" {
+	if function == "createMember" {
 		return t.createMember(stub, args)
 	} else if function == "generateFitcoins" {
 		return t.generateFitcoins(stub, args)
@@ -141,11 +138,11 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 		return t.transactPurchase(stub, args)
 	} else if function == "getAllUserContracts" {
 		return t.getAllUserContracts(stub, args)
-	}	else if function == "getAllContracts" {
+	} else if function == "getAllContracts" {
 		return t.getAllContracts(stub, args)
 	}
 
-	return shim.Error( "Function with the name " + function + " does not exist.")
+	return shim.Error("Function with the name " + function + " does not exist.")
 }
 
 // ============================================================================================================================
