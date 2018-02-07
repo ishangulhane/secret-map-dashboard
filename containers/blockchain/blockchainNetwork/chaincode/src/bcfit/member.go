@@ -22,7 +22,7 @@ package main
 import (
 	"encoding/json"
 	"strconv"
-	"strings"
+  "strings"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	pb "github.com/hyperledger/fabric/protos/peer"
@@ -39,16 +39,16 @@ func (t *SimpleChaincode) createMember(stub shim.ChaincodeStubInterface, args []
 	}
 
 	//get id and type from args
-	member_id := args[0]
-	member_type := strings.ToLower(args[1])
+  member_id := args[0]
+  member_type := strings.ToLower(args[1])
 
 	//check if type is 'user'
-	if member_type == TYPE_USER {
+  if member_type == TYPE_USER {
 
 		//create user
 		var user User
 		user.Id = member_id
-		user.Type = member_type
+		user.Type = TYPE_USER
 		user.FitcoinsBalance = 0
 		user.StepsUsedForConversion = 0
 		user.TotalSteps = 0
@@ -69,20 +69,27 @@ func (t *SimpleChaincode) createMember(stub shim.ChaincodeStubInterface, args []
 		//create seller
 		var seller Seller
 		seller.Id = member_id
-		seller.Type = member_type
+		seller.Type = TYPE_SELLER
 		seller.FitcoinsBalance = 0
 
 		// store seller
-		sellerAsBytes, _ := json.Marshal(seller)
-		err = stub.PutState(seller.Id, sellerAsBytes)
-		if err != nil {
-			return shim.Error(err.Error())
-		}
+		sellersBytes, err := stub.GetState( "sellers" )
+    if err != nil {
+      return shim.Error( "Unable to get users." )
+    }
+    var sellers []Seller
+
+    // add seller and update sellers
+    json.Unmarshal( sellersBytes, &sellers )
+    sellers = append( sellers, seller )
+    updatedSellersBytes, _ := json.Marshal( sellers )
+    err = stub.PutState( "sellers", updatedSellersBytes )
 
 		//return seller info
+		sellerAsBytes, _ := json.Marshal( seller )
 		return shim.Success(sellerAsBytes)
 
-	}
+  }
 
 	return shim.Success(nil)
 
@@ -96,13 +103,13 @@ func (t *SimpleChaincode) generateFitcoins(stub shim.ChaincodeStubInterface, arg
 	if len(args) != 2 {
 		return shim.Error("Incorrect number of arguments")
 	}
-	var err error
+  var err error
 
 	//get user_id and newSteps from args
-	user_id := args[0]
+  user_id := args[0]
 	newTransactionSteps, err := strconv.Atoi(args[1])
 	if err != nil {
-		return shim.Error(err.Error())
+			return shim.Error(err.Error())
 	}
 
 	//get user
@@ -112,9 +119,6 @@ func (t *SimpleChaincode) generateFitcoins(stub shim.ChaincodeStubInterface, arg
 		return shim.Error("Failed to get user")
 	}
 	json.Unmarshal(userAsBytes, &user)
-	if user.Type != TYPE_USER {
-		return shim.Error("Not user type")
-	}
 
 	//update user account
 	var newSteps = newTransactionSteps - user.StepsUsedForConversion
@@ -133,7 +137,7 @@ func (t *SimpleChaincode) generateFitcoins(stub shim.ChaincodeStubInterface, arg
 		}
 
 		//return user info
-		return shim.Success(updatedUserAsBytes)
+	  return shim.Success(updatedUserAsBytes)
 	}
 
 	return shim.Success(userAsBytes)
