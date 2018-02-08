@@ -164,7 +164,7 @@ func (t *SimpleChaincode) getProductsForSale(stub shim.ChaincodeStubInterface, a
 	//get sellers array
 	sellerIdsBytes, err := stub.GetState("sellerIds")
 	if err != nil {
-		return shim.Error("Unable to get sellerIds")
+		return shim.Error("Unable to get sellers.")
 	}
 	var sellerIds []string
 	json.Unmarshal(sellerIdsBytes, &sellerIds)
