@@ -73,20 +73,25 @@ func (t *SimpleChaincode) createMember(stub shim.ChaincodeStubInterface, args []
 		seller.FitcoinsBalance = 0
 
 		// store seller
-		sellersBytes, err := stub.GetState("sellers")
+		sellerAsBytes, _ := json.Marshal(seller)
+		err = stub.PutState(seller.Id, sellerAsBytes)
+		if err != nil {
+			return shim.Error(err.Error())
+		}
+
+		//get and update sellerIDs
+		sellerIdsBytes, err := stub.GetState("sellerIds")
 		if err != nil {
 			return shim.Error("Unable to get users.")
 		}
-		var sellers []Seller
-
-		// add seller and update sellers
-		json.Unmarshal(sellersBytes, &sellers)
-		sellers = append(sellers, seller)
-		updatedSellersBytes, _ := json.Marshal(sellers)
-		err = stub.PutState("sellers", updatedSellersBytes)
+		var sellerIds []string
+		// add sellerID to update sellers
+		json.Unmarshal(sellerIdsBytes, &sellerIds)
+		sellerIds = append(sellerIds, seller.Id)
+		updatedSellerIdsBytes, _ := json.Marshal(sellerIds)
+		err = stub.PutState("sellerIds", updatedSellerIdsBytes)
 
 		//return seller info
-		sellerAsBytes, _ := json.Marshal(seller)
 		return shim.Success(sellerAsBytes)
 
 	}
@@ -119,6 +124,9 @@ func (t *SimpleChaincode) generateFitcoins(stub shim.ChaincodeStubInterface, arg
 		return shim.Error("Failed to get user")
 	}
 	json.Unmarshal(userAsBytes, &user)
+	if user.Type != TYPE_USER {
+		return shim.Error("Not user type")
+	}
 
 	//update user account
 	var newSteps = newTransactionSteps - user.StepsUsedForConversion

@@ -99,13 +99,13 @@ func main() {
 // ============================================================================================================================
 func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response {
 
-	//sellers
-	var sellers []Seller
-	sellersBytes, err := json.Marshal(sellers)
+	//store sellerIds
+	var sellerIds []string
+	sellerIdsBytes, err := json.Marshal(sellerIds)
 	if err != nil {
 		return shim.Error("Error initializing sellers.")
 	}
-	err = stub.PutState("sellers", sellersBytes)
+	err = stub.PutState("sellerIds", sellerIdsBytes)
 
 	return shim.Success(nil)
 }
