@@ -8,44 +8,62 @@ This document goes through all the functions in the chaincode. All chaincode fun
 * args - array of string
 
 
-### Enroll
+### Create user and seller
 
-Enroll member call
+#### Enroll member call
 ```
 var input = {
   type: enroll,
   params: {}
 }
 ```
-
-
-### User invoke calls
-
-The invoke calls from user's iOS app which update the blockchain state.
+- return memberID
 
 #### Create user
 ```
 var input = {
   type: invoke,
   params: {
-    userId: userId,
+    userId: memberID,
     fcn: createMember
-    args: userID, user
+    args: memberID, user
   }
 }
 ```
+- memberID - the id created for user
+- user - "user" string must be second arg
+
+#### Create seller
+```
+var input = {
+  type: invoke,
+  params: {
+    userId: memberID
+    fcn: createMember
+    args: memberID, seller
+  }
+}
+```
+- memberID - the id created for seller
+- user - "seller" string must be second arg
+
+### User invoke calls
+
+The invoke calls from user's iOS app which update the blockchain state.
 
 #### Generate fitcoins
 ```
 input = {
   type: invoke,
   params: {
-    userId: userId,
+    userId: userId
     fcn: generateFitcoins
-    args: userID, totalSteps
+    args: userId, totalSteps
   }
 }
 ```
+- userID - the user ID returned from enroll
+- totalSteps - the total steps walked by user
 
 #### Make purchase
 ```
@@ -54,15 +72,13 @@ input = {
   params: {
     userId: userId,
     fcn: makePurchase
-    args: sellerID, userID, productID, quantity
+    args: userId, sellerId, productId, quantity
   }
 }
 ```
 
-#### args def
-- userID - the user ID returned from enroll
-- totalSteps - the total steps walked by user
 - sellerID - the seller's ID
+- userID
 - productID - the id of product with seller, picked by user through interface
 - quantity - picked by user through interface
 
@@ -70,18 +86,6 @@ input = {
 ### Seller invoke calls
 
 The invoke calls from seller dashboard which update the blockchain state.
-
-#### Create seller
-```
-var input = {
-  type: invoke,
-  params: {
-    userId: sellerID
-    fcn: createMember
-    args: sellerID, seller
-  }
-}
-```
 
 #### Create product inventory
 ```
@@ -94,6 +98,11 @@ var input = {
   }
 }
 ```
+- sellerID - the seller's ID returned from enroll
+- productID - product property: the id of product with seller
+- productName - product property: the name of product
+- productCount - product property: the count of product
+- productPrice - product price: the price of product
 
 #### Update product inventory
 ```
@@ -106,26 +115,31 @@ var input = {
   }
 }
 ```
+- sellerID - the seller's ID returned from enroll
+- productID - product property: the id of product with seller
+- productName - product property: the name of product
+- productCount - product property: the count of product
+- productPrice - product price: the price of product
+
+### User or Seller invoke calls
+
+User or seller can call transact purchase.  Only seller can complete the transaction while both seller and user can decline the transaction
 
 #### Transact purchase
 ```
 var input = {
   type: invoke,
   params: {
-    userId: sellerID
+    userId: memberID
     fcn: transactPurchase
-    args: contractID, newState(complete or declined)
+    args: memberID, contractID, newState(complete or declined)
   }
 }
 ```
 
-#### args def
-- sellerID - the seller's ID returned from enroll
-- productID - product property: the id of product with seller
-- productName - product property: the name of product
-- productCount - product property: the count of product
-- productPrice - product price: the price of product
+- memberID - the id of user or seller calling the function
 - contractID - the contract ID generated when user perform 'makePurchase'
+- newState - must be "declined" or "complete". Only the sellerID on the contract can make the "complete" call
 
 
 ### Query calls
@@ -140,10 +154,11 @@ var input = {
   params: {
     userId: userID
     fcn: getState
-    args: id (userId, sellerID or contractID)
+    args: id userId, sellerID or contractID
   }
 }
 ```
+- id - must be a userId, sellerID or contractID
 
 #### Get products for sale
 Gets array of products available with sellerID
@@ -159,6 +174,7 @@ var input = {
 ```
 
 #### Get all user's contracts
+Get user's contracts, for all the purchases made
 ```
 var input = {
   type: query,
@@ -169,8 +185,10 @@ var input = {
   }
 }
 ```
+- userID - the user's ID
 
 #### Get all contracts
+Gets all contracts
 ```
 var input = {
   type: query,
@@ -181,18 +199,3 @@ var input = {
   }
 }
 ```
-
-#### Get product by Id
-```
-var input = {
-  type: query,
-  params: {
-    userId: userID,
-    fcn: getProductByID
-    args: userID, productId
-  }
-}
-```
-
-#### args def
-- userID - the user's ID
