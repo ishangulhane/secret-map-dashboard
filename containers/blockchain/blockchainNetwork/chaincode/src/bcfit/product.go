@@ -63,51 +63,44 @@ func (t *SimpleChaincode) updateProduct(stub shim.ChaincodeStubInterface, args [
 	}
 
 	//get seller
-	sellersBytes, err := stub.GetState("sellers")
+	sellerAsBytes, err := stub.GetState(seller_id)
 	if err != nil {
-		return shim.Error("Unable to get sellers.")
+		return shim.Error("Failed to get seller")
 	}
-	var sellers []Seller
-	json.Unmarshal(sellersBytes, &sellers)
+	var seller Seller
+	json.Unmarshal(sellerAsBytes, &seller)
+	if seller.Type != TYPE_SELLER {
+		return shim.Error("Not seller type")
+	}
 
-	//find seller and product
-	sellerFound := false
+	//find the product and update the properties
 	productFound := false
-
-	//find seller in sellers array
-	for g := 0; g < len(sellers); g++ {
-		if sellers[g].Id == seller_id {
-			sellerFound = true
-			//find the product and update the properties
-			for h := 0; h < len(sellers[g].Products); h++ {
-				if sellers[g].Products[h].Id == product_id {
-					productFound = true
-					sellers[g].Products[h].Name = newProductName
-					sellers[g].Products[h].Count = newProductCount
-					sellers[g].Products[h].Price = newProductPrice
-					break
-				}
-			}
-			//if product not found, append product
-			if productFound != true {
-				var product Product
-				product.Id = product_id
-				product.Name = newProductName
-				product.Count = newProductCount
-				product.Price = newProductPrice
-				//append product
-				sellers[g].Products = append(sellers[g].Products, product)
-			}
+	for h := 0; h < len(seller.Products); h++ {
+		if seller.Products[h].Id == product_id {
+			productFound = true
+			seller.Products[h].Name = newProductName
+			seller.Products[h].Count = newProductCount
+			seller.Products[h].Price = newProductPrice
 			break
 		}
 	}
-	//if product or seller not found return error
-	if sellerFound != true {
-		return shim.Error("Seller not found")
+	//if product not found return error
+	if productFound != true {
+		var product Product
+		product.Id = product_id
+		product.Name = newProductName
+		product.Count = newProductCount
+		product.Price = newProductPrice
+		//append product
+		seller.Products = append(seller.Products, product)
 	}
 
-	updatedSellerAsBytes, _ := json.Marshal(sellers)
-	err = stub.PutState("sellers", updatedSellerAsBytes)
+	//update seller's state
+	updatedSellerAsBytes, _ := json.Marshal(seller)
+	err = stub.PutState(seller_id, updatedSellerAsBytes)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
 
 	//return seller info
 	return shim.Success(updatedSellerAsBytes)
@@ -128,45 +121,37 @@ func (t *SimpleChaincode) getProductByID(stub shim.ChaincodeStubInterface, args 
 	seller_id := args[0]
 	product_id := args[1]
 
-	//get sellers array
-	sellersBytes, err := stub.GetState("sellers")
+	//get seller
+	sellerAsBytes, err := stub.GetState(seller_id)
 	if err != nil {
-		return shim.Error("Unable to get sellers.")
+		return shim.Error("Failed to get seller")
 	}
-	var sellers []Seller
-	json.Unmarshal(sellersBytes, &sellers)
+	var seller Seller
+	json.Unmarshal(sellerAsBytes, &seller)
+	if seller.Type != TYPE_SELLER {
+		return shim.Error("Not seller type")
+	}
 
-	//find seller and product
+	//find the product
 	var product Product
-	sellerFound := false
 	productFound := false
-
-	//find seller in sellers array
-	for g := 0; g < len(sellers); g++ {
-		if sellers[g].Id == seller_id {
-			sellerFound = true
-			//find the product and update the properties
-			for h := 0; h < len(sellers[g].Products); h++ {
-				if sellers[g].Products[h].Id == product_id {
-					productFound = true
-					product = sellers[g].Products[h]
-					break
-				}
-			}
+	for h := 0; h < len(seller.Products); h++ {
+		if seller.Products[h].Id == product_id {
+			productFound = true
+			product = seller.Products[h]
 			break
 		}
 	}
-	//if product or seller not found return error
+
+	//if product not found return error
 	if productFound != true {
 		return shim.Error("Product not found")
 	}
-	if sellerFound != true {
-		return shim.Error("Seller not found")
-	}
 
-	//return product
+	//return product type
 	productAsBytes, _ := json.Marshal(product)
 	return shim.Success(productAsBytes)
+
 }
 
 // ============================================================================================================================
@@ -177,12 +162,12 @@ func (t *SimpleChaincode) getProductsForSale(stub shim.ChaincodeStubInterface, a
 	var err error
 
 	//get sellers array
-	sellersBytes, err := stub.GetState("sellers")
+	sellerIdsBytes, err := stub.GetState("sellerIds")
 	if err != nil {
 		return shim.Error("Unable to get sellers.")
 	}
-	var sellers []Seller
-	json.Unmarshal(sellersBytes, &sellers)
+	var sellerIds []string
+	json.Unmarshal(sellerIdsBytes, &sellerIds)
 
 	// create return object array
 	type ReturnProductSale struct {
@@ -194,17 +179,25 @@ func (t *SimpleChaincode) getProductsForSale(stub shim.ChaincodeStubInterface, a
 	}
 	var returnProducts []ReturnProductSale
 
-	//go through all sellers
-	for g := 0; g < len(sellers); g++ {
-		//go through all products
-		for h := 0; h < len(sellers[g].Products); h++ {
-			if sellers[g].Products[h].Count > 0 {
+	//go through all sellerIDs
+	for g := 0; g < len(sellerIds); g++ {
+
+		//get seller
+		sellerAsBytes, err := stub.GetState(sellerIds[g])
+		if err != nil {
+			return shim.Error("Failed to get seller")
+		}
+		var seller Seller
+		json.Unmarshal(sellerAsBytes, &seller)
+
+		for h := 0; h < len(seller.Products); h++ {
+			if seller.Products[h].Count > 0 {
 				var returnProduct ReturnProductSale
-				returnProduct.SellerID = sellers[g].Id
-				returnProduct.ProductId = sellers[g].Products[h].Id
-				returnProduct.Name = sellers[g].Products[h].Name
-				returnProduct.Count = sellers[g].Products[h].Count
-				returnProduct.Price = sellers[g].Products[h].Price
+				returnProduct.SellerID = seller.Id
+				returnProduct.ProductId = seller.Products[h].Id
+				returnProduct.Name = seller.Products[h].Name
+				returnProduct.Count = seller.Products[h].Count
+				returnProduct.Price = seller.Products[h].Price
 				//append to array
 				returnProducts = append(returnProducts, returnProduct)
 			}
