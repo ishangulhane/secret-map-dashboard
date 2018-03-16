@@ -4,7 +4,7 @@ var resolve = require('path').resolve;
 var EventEmitter = require('events').EventEmitter;
 var hfc = require('fabric-client');
 var CAClient = require('fabric-ca-client');
-var CouchDBKeyValueStore = require('fabric-client/lib/impl/CouchDBKeyValueStore.js');
+var CouchDBKeyValueStore = require('./CouchDBKeyValueStore.js');
 var CKS = require('fabric-client/lib/impl/CryptoKeyStore.js');
 import enrollUser from './enroll';
 var utils = require('./utils.js');
@@ -267,28 +267,37 @@ export class OrganizationClient extends EventEmitter {
       throw e;
     }
   }
-  async getBlocks(noOfLastBlocks) {
-    if(typeof noOfLastBlocks !== 'number' && typeof noOfLastBlocks !== 'string') {
+  async getBlocks(currentBlock, noOfLastBlocks) {
+    if(currentBlock === 0) {
       return [];
     }
-    const {
+    if(!currentBlock) {
+      currentBlock = -1;
+    }
+    if(!noOfLastBlocks) {
+      noOfLastBlocks = 10;
+    }
+    currentBlock = typeof currentBlock !== 'number' ? Number(currentBlock) : currentBlock;
+    noOfLastBlocks = typeof noOfLastBlocks !== 'number' ? Number(noOfLastBlocks) : noOfLastBlocks;
+    var {
       height
     } = await this._channel.queryInfo();
+    if(currentBlock == -1) {
+      currentBlock = height;
+    }
+    if(height.comp(currentBlock) >= 0) {
+      height = Long.fromNumber(currentBlock, height.unsigned);
+    }
     let blockCount;
     if(height.comp(noOfLastBlocks) > 0) {
-      blockCount = noOfLastBlocks;
+      blockCount = Long.fromNumber(noOfLastBlocks, height.unsigned);
     } else {
       blockCount = height;
-    }
-    if(typeof blockCount === 'number') {
-      blockCount = Long.fromNumber(blockCount, height.unsigned);
-    } else if(typeof blockCount === 'string') {
-      blockCount = Long.fromString(blockCount, height.unsigned);
     }
     blockCount = blockCount.toNumber();
     const queryBlock = this._channel.queryBlock.bind(this._channel);
     const blockPromises = {};
-    blockPromises[Symbol.iterator] = function*() {
+    blockPromises[Symbol.iterator] = function* () {
       for(let i = 1; i <= blockCount; i++) {
         yield queryBlock(height.sub(i).toNumber());
       }
@@ -301,7 +310,8 @@ export class OrganizationClient extends EventEmitter {
       if(!enrollmentID && enrollmentID === "") {
         throw new Error(`Invalid User Id`);
       }
-      let adminUser = await this._client.getUserContext('admin', true);
+      //let adminUser = await this._client.getUserContext('admin', true);
+      let adminUser = this._adminUser;
       if(!adminUser && !adminUser.isEnrolled()) {
         throw new Error(`Admin user not present to register user : ` + enrollmentID);
       }
@@ -310,6 +320,19 @@ export class OrganizationClient extends EventEmitter {
         adminUser: adminUser,
         affiliationOrg: this._peerConfig.org
       });
+    } catch(e) {
+      throw e;
+    }
+  }
+  async getTransactionDetails(txId) {
+    try {
+      var transactionData = await this._channel.queryTransaction(txId);
+      transactionData = transactionData ? transactionData.transactionEnvelope.payload.data.actions : "";
+      var execution_response = transactionData !== "" ? transactionData[0].payload.action.proposal_response_payload.extension.response : "";
+      return {
+        txId: txId,
+        results: execution_response
+      };
     } catch(e) {
       throw e;
     }
