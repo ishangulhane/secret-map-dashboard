@@ -198,6 +198,10 @@ services:
     container_name: blockchain-setup
     image: blockchain-setup
     environment:
+<<<<<<< HEAD
+    - PORT=3000
+=======
+>>>>>>> fdce2c1ef2bac2d962da8c44e0b25ef0ccf231ef
     - DOCKER_SOCKET_PATH=/host/var/run/docker.sock
     - DOCKER_CCENV_IMAGE=hyperledger/fabric-ccenv:x86_64-1.0.2
     - SECRETSDIR=/run/secrets
@@ -225,9 +229,13 @@ services:
     - SECRETSDIR=/run/secrets
     - RABBITMQQUEUE=seller_queue
     - SOCKETPORT=3030
+<<<<<<< HEAD
+    - MESSAGEEXPIRY=600
+=======
     - MESSAGEEXPIRY=300
     - EVENTEMITTER=true
     - SENDTOIOT=false
+>>>>>>> fdce2c1ef2bac2d962da8c44e0b25ef0ccf231ef
     ports:
     - 3030:3030
     volumes:
@@ -249,8 +257,16 @@ services:
     - DOCKER_CCENV_IMAGE=hyperledger/fabric-ccenv:x86_64-1.0.2
     - SECRETSDIR=/run/secrets
     - RABBITMQQUEUE=user_queue
+<<<<<<< HEAD
+    - SOCKETPORT=3030
+    - MESSAGEEXPIRY=600
+    ports:
+    - 3001:3000
+    - 3031:3030
+=======
     - MESSAGEEXPIRY=300
     - SENDTOIOT=false
+>>>>>>> fdce2c1ef2bac2d962da8c44e0b25ef0ccf231ef
     volumes:
     - /var/run/:/host/var/run/
     depends_on:
