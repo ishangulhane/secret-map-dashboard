@@ -2,7 +2,21 @@
 const TRANSACTION_TIMEOUT = 120000;
 export default async function (userId, clientObject, chaincodeId, chaincodeVersion, fcn, args) {
   var Transaction = require('fabric-client/lib/TransactionID.js');
-  var user_from_store = await clientObject._client.getUserContext(userId, true);
+  //var user_from_store = await clientObject._client.getUserContext(userId, true);
+  var getUser = async function (clientObject, userId, count) {
+    try {
+      var user = await clientObject._client.getUserContext(userId, true);
+      return user;
+    } catch(e) {
+      if(count > 2) {
+        count++;
+        return getUser(clientObject, userId, count);
+      } else {
+        throw new Error('Failed to get user : ' + userId + ' from persistence. Error: ' + e.message);
+      }
+    }
+  };
+  var user_from_store = await getUser(clientObject, userId, 1);
   if(!(user_from_store && user_from_store.isEnrolled())) {
     throw new Error('Failed to get user : ' + userId + ' from persistence');
   }
@@ -72,17 +86,13 @@ export default async function (userId, clientObject, chaincodeId, chaincodeVersi
     var results = await Promise.all(promises);
     //console.log('Send transaction promise and event listener promise have completed');
     // check the results in the order the promises were added to the promise all list
-    if(results && results[0] && results[0].status === 'SUCCESS') {
-      console.log('Successfully sent transaction to the orderer.');
-    } else {
+    if(!(results && results[0] && results[0].status === 'SUCCESS')) {
+      //console.log('Successfully sent transaction to the orderer.');
       throw new Error('Failed to order the transaction. Error code: ' + results.status);
     }
     if(results && results[1] && results[1].event_status === 'VALID') {
       console.log('Successfully committed the change to the ledger by the peer');
-      //console.log("Transaction Id " + results[1].tx_id);
-      return JSON.stringify({
-        txId: results[1].tx_id
-      });
+      return results[1].tx_id;
     } else {
       throw new Error('Transaction failed to be committed to the ledger due to ::' + results[1].event_status);
     }

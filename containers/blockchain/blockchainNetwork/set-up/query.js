@@ -1,7 +1,20 @@
 'use strict';
 export default async function (userId, clientObject, chaincodeId, chaincodeVersion, fcn, args) {
   try {
-    var user_from_store = await clientObject._client.getUserContext(userId, true);
+    //var user_from_store = await clientObject._client.getUserContext(userId, true);
+    var getUser = async function (clientObject, userId, count) {
+      try {
+        return clientObject._client.getUserContext(userId, true);
+      } catch(e) {
+        if(count > 2) {
+          count++;
+          return getUser(clientObject, userId, count);
+        } else {
+          throw new Error('Failed to get user : ' + userId + ' from persistence. Error: ' + e.message);
+        }
+      }
+    };
+    var user_from_store = await getUser(clientObject, userId, 1);
     if(!(user_from_store && user_from_store.isEnrolled())) {
       throw new Error('Failed to get user : ' + userId + ' from persistence');
     }
@@ -21,9 +34,10 @@ export default async function (userId, clientObject, chaincodeId, chaincodeVersi
         throw new Error("Error from query = ", query_responses[0].message);
       } else {
         //console.log("Query Response : " + query_responses);
-        return JSON.stringify({
+        /*return JSON.stringify({
           response: query_responses.toString('utf8')
-        });
+        });*/
+        return query_responses.toString('utf8');
       }
     } else {
       throw new Error("No payloads were returned from query");

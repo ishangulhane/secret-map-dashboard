@@ -15,13 +15,14 @@ class Events {
   requestBlocks() {
     var query = {
       type: "blocks",
+      queue: "seller_queue",
       params: {
         "noOfLastBlocks": "20"
       }
     };
     var self = this;
     $.ajax({
-      url: "http://localhost:3002/api/execute",
+      url: "http://localhost:3000/api/execute",
       type: "POST",
       data: JSON.stringify(query),
       dataType: 'json',
@@ -41,7 +42,7 @@ class Events {
   getResults(resultId, attemptNo, self) {
     if(attemptNo < 60) {
       //console.log("Attempt no " + attemptNo);
-      $.get("http://localhost:3002/api/results/" + resultId).done(function (data) {
+      $.get("http://localhost:3000/api/results/" + resultId).done(function (data) {
         data = typeof data !== "string" ? data : JSON.parse(data);
         //console.log(" Status  " + data.status);
         if(data.status === "done") {
@@ -63,7 +64,8 @@ class Events {
     $(rowData).hide().prependTo('#table_view tbody').fadeIn("slow").addClass('normal');
   }
   loadBlocks(data) {
-    data = data === "string" ? JSON.parse(JSON.parse(data).result) : JSON.parse(data.result);
+    //console.log(data);
+    data = data === "string" ? JSON.parse(data) : data;
     data = data.result.sort((a, b) => a.id > b.id);
     data.forEach(function (eventData) {
       var rowData = "<tr class='anim highlight'><td width='10%'>" + eventData["id"] + "</td><td width='20%'>" + eventData["fingerprint"] + "</td><td width='50%'>" + JSON.stringify(eventData["transactions"]) + "</td></tr>";

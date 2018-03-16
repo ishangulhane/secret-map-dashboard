@@ -15,8 +15,8 @@ export class DashboardComponent implements OnInit {
 
   steps: number;
   calories: number;
-  fitcoins: number;
   conferenceAttendees: number;  // Will change to an array of Conference Attendees
+  totalDistance: number;
   sideDisplayInterval: any;
   MainDisplayInterval: any;
   conference: Conference;
@@ -29,7 +29,6 @@ export class DashboardComponent implements OnInit {
   constructor(
     private dashboardService: DashboardService,
     private route: ActivatedRoute) {
-
      }
 
    /**
@@ -39,8 +38,8 @@ export class DashboardComponent implements OnInit {
   ngOnInit() {
     this.steps = 0;
     this.calories = 0;
-    this.fitcoins = 0;
     this.conferenceAttendees = 0;  // initialization will change to getConferenceAttendees()
+    this.totalDistance = 0;
     this.getSideDisplayInfo();
     this.getConferenceAttendees();
     this.getConference();
@@ -48,7 +47,6 @@ export class DashboardComponent implements OnInit {
 
    /**
    * Get conference by eventId in map-api server using the Dashboard service
-   * @param - none
    */
   getConference(): void {
     const eventId = this.route.snapshot.paramMap.get('eventId');
@@ -59,24 +57,24 @@ export class DashboardComponent implements OnInit {
    /**
    * Increments the values of steps, calories and fitcoins every 2 seconds by
    * a certain value
-   * @param - none
    */
   getSideDisplayInfo(): void {
     this.sideDisplayInterval = setInterval(() => {
-      this.steps += 10;
-      this.calories += 2;
-      this.fitcoins += 2;
+      this.steps += (4 * this.conferenceAttendees);
+      this.calories = Math.floor(this.steps / 20);
+      this.totalDistance = Math.floor(this.steps / 1320);
     }
-    , 2000);
+    , 1000);
   }
 
    /**
    * Increments the value of conferenceAttendees every second by 4
-   * @param - none
    */
   getConferenceAttendees(): void {
     this.MainDisplayInterval = setInterval(() => {
-      this.conferenceAttendees += 4;
+      if(this.conferenceAttendees < 500){
+        this.conferenceAttendees += 1;
+      }
     }, 1000);
   }
 
