@@ -1,6 +1,6 @@
 [![Build Status](https://travis-ci.org/IBM/secret-map-dashboard.svg?branch=master)](https://travis-ci.org/IBM/secret-map-dashboard)
 
-# Secret-map-dashboard map-api
+# Secret-map-dashboard map-api   
 
 ## Getting Started
 
@@ -92,15 +92,15 @@ This project was implemented using with [Angular 2 CLI](https://cli.angular.io/)
 ```
 _Application will be served on http://localhost:4200_
 
-## Project Structure 
+## Project Structure
 
 > Components, directives and services are angular.js terminology
 
-### Componenets 
+### Componenets
 
 * Homepage - landing page that shows endpoints for all conferences that are registered  
 
-* Main-dispaly - shows the event name, the event booth blocks with centered text ( which is the Map area componenet), and a footer that displays the total tally number of the distance traveled, the calories burned, and the fitcoins accumlated by conference attendees at a conference. 
+* Main-dispaly - shows the event name, the event booth blocks with centered text ( which is the Map area componenet), and a footer that displays the total tally number of the distance traveled, the calories burned, and the fitcoins accumlated by conference attendees at a conference.
 
 * Heatmap - display a NxM grid that will display different gradients of color depending on the conference attendee's footsteps
 
@@ -115,18 +115,18 @@ _Application will be served on http://localhost:4200_
 
 ### Services
 
-* Dashboard service - handles all of the http requests towards the map-api server 
+* Dashboard service - handles all of the http requests towards the map-api server
 
 > _To create a service run this commmand_ `ng generate service < service-name >`
 
-### Directives 
+### Directives
 * Map-area directive - handles the responsiveness of the size and positioning of the event booth blocks in regards to changing of the browser window's size
 
 > _To create a directive run this commmand_ `ng generate directive < directive-name >`
 
 ## Syntax Checking
 * `npm run lint`  _(checks for typescript syntax)_
- 
+
 ## E2E tests
 * `npm run e2e`
 
